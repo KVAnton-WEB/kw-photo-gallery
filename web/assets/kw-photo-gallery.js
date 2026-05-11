@@ -45,63 +45,67 @@ lightbox.on('uiRegister', function () {
         name: 'toggle-hd',
         order: 7,
         isButton: true,
-        ariaLabel: 'Toggle quality',
-        title: 'Switch between HD and Web quality',
+        ariaLabel: 'Переключить качество',
+        title: 'Переключить качество в HD/WEB',
         html: 'HD',
 
         onInit: (el, pswp) => {
-            pswp.on('change', () => {
-                el.innerHTML = 'HD';
-                el.style.fontWeight = 'normal';
-                el.classList.remove('active');
-            });
+          // Сбрасываем кнопку при смене слайда
+          pswp.on('change', () => {
+            el.innerHTML = 'HD';
+            el.style.fontWeight = 'normal';
+          });
         },
 
         onClick: (event, el) => {
-            const pswp = lightbox.pswp;
-            const slide = pswp.currSlide;
-            const element = slide.data.element;
-            const rawUrl = element?.dataset?.raw;
-            const fullUrl = element?.href;
+          const pswp = lightbox.pswp;
+          const slide = pswp.currSlide;
+          const element = slide.data.element;
+          const rawUrl = element?.dataset?.raw;
+          const fullUrl = element?.href; // AVIF
 
-            if (!rawUrl || !fullUrl) return;
+          if (!rawUrl || !fullUrl) return;
 
-            const isHD = slide.data._isHD;
-            const newSrc = isHD ? fullUrl : rawUrl;
+          const isHD = slide.data._isHD;
+          const newSrc = isHD ? fullUrl : rawUrl;
 
-            pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: true });
+          // Показать индикатор загрузки
+          pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: true });
 
-            const img = new Image();
-            img.onload = () => {
-                const currentImg = slide.content.element?.querySelector('.pswp__img');
-                if (currentImg) {
-                    currentImg.style.transition = 'opacity 0.3s ease';
-                    currentImg.style.opacity = '0';
+          // Предзагрузка изображения
+          const img = new Image();
+          img.onload = () => {
+            const currentImg = slide.content.element;
+            if (currentImg) {
+              // Плавная смена
+              currentImg.style.transition = 'opacity 0.3s ease';
+              currentImg.style.opacity = '0';
 
-                    setTimeout(() => {
-                        currentImg.src = newSrc;
-                        currentImg.onload = () => {
-                            currentImg.style.opacity = '1';
-                            slide.data._isHD = !isHD;
-                            slide.data.src = newSrc;
+              setTimeout(() => {
+                currentImg.src = newSrc;
+                currentImg.onload = () => {
+                  currentImg.style.opacity = '1';
+                  slide.data._isHD = !isHD;
+                  slide.data.src = newSrc;
 
-                            el.innerHTML = slide.data._isHD ? 'WEB' : 'HD';
-                            el.style.fontWeight = slide.data._isHD ? 'bold' : 'normal';
-                            el.classList.toggle('active', slide.data._isHD);
-                        };
-                    }, 200);
-                }
-                pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: false });
-            };
+                  // Обновить кнопку
+                  el.innerHTML = slide.data._isHD ? 'WEB' : 'HD';
+                  el.style.fontWeight = slide.data._isHD ? 'bold' : 'normal';
+                };
+              }, 300);
+            }
 
-            img.onerror = () => {
-                console.error('Failed to load image');
-                pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: false });
-            };
+            pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: false });
+          };
 
-            img.src = newSrc;
+          img.onerror = () => {
+            console.error('Failed to load HD image');
+            pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: false });
+          };
+
+          img.src = newSrc;
         }
-    });
+      });
 });
 
 lightbox.init();
