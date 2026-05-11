@@ -1,0 +1,35 @@
+venv/
+env/
+.venv/
+.env/
+*virtualenv*
+thumbs/
+full/
+raw/
+index.html
+
+# Python кэш и байткод
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Временные файлы
+*.tmp
+*.temp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+.directory
+.Trash-*
