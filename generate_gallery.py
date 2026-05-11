@@ -245,11 +245,11 @@ def process_image(img_path: Path, full_dir: Path, thumb_dir: Path,
         }
 
 
-def format_progress(current: int, total: int, elapsed: float,
-                    current_file: str = '', status: str = '') -> str:
-    """Форматирует строку прогресса"""
+def print_progress(current: int, total: int, elapsed: float,
+                   current_file: str = '', status: str = ''):
+    """Вывод прогресс-бара с восстановлением цвета"""
     pct = current / total * 100
-    bar_width = 30
+    bar_width = 25
     filled = int(bar_width * current / total)
     bar = '█' * filled + '░' * (bar_width - filled)
 
@@ -263,14 +263,14 @@ def format_progress(current: int, total: int, elapsed: float,
 
     elapsed_str = f'{elapsed:.0f}s' if elapsed < 60 else f'{elapsed/60:.1f}m'
 
-    line = f'\r  [{bar}] {pct:5.1f}% ({current}/{total}) | {elapsed_str} | {eta}'
+    file_part = f' | {current_file}' if current_file else ''
+    status_part = f' | {status}' if status else ''
 
-    if current_file:
-        line += f' | {current_file}'
-    if status:
-        line += f' | {status}'
+    # \033[0m — сброс всех атрибутов цвета
+    line = f'\r\033[0m  [{bar}] {pct:5.1f}% ({current}/{total}) | {elapsed_str} | {eta}{file_part}{status_part}\033[K'
 
-    return line
+    sys.stdout.write(line)
+    sys.stdout.flush()
 
 
 def main():
@@ -340,9 +340,8 @@ def main():
                     status += f' [{result["size_info"]}]'
 
                 # Выводим прогресс
-                line = format_progress(completed, total, elapsed, result['name'], status)
-                sys.stdout.write(line + '\033[K')  # \033[K очищает до конца строки
-                sys.stdout.flush()
+                print_progress(completed, total, elapsed, result['name'], status)
+
 
     # Финальный перевод строки
     print()
@@ -369,6 +368,8 @@ def main():
     generate_html(images_data, output_path, archive_path, args)
     minify_assets(root / 'assets')
     print(f"✅ Done! {len(images_data)} photos → {output_path}")
+    sys.stdout.write('\033[0m\n')
+    sys.stdout.flush()
 
 
 def generate_html(images_data: list[dict], output_path: Path, archive_path, args):

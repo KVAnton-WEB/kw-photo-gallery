@@ -1,184 +1,204 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+/* === Reset & Base === */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-    background: #1a1a1a;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #fff;
+  background: #1a1a1a;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #fff;
 }
 
+/* === Header === */
 .header {
-    padding: 30px 20px;
-    text-align: center;
-    background: linear-gradient(180deg, #2a2a2a, #1a1a1a);
-    border-bottom: 1px solid #333;
+  padding: 30px 20px;
+  text-align: center;
+  background: linear-gradient(180deg, #2a2a2a, #1a1a1a);
+  border-bottom: 1px solid #333;
 }
 
 .header h1 {
-    font-size: 28px;
-    font-weight: 300;
-    letter-spacing: 3px;
-    margin-bottom: 8px;
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
 }
 
 .header p {
-    color: #888;
-    font-size: 14px;
+  color: #888;
+  font-size: 14px;
 }
 
+.archive-link {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.archive-link a {
+  color: #fff;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.archive-link a:hover {
+  color: #ffd700;
+}
+
+/* === Gallery Grid === */
 .gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 2px;
-    padding: 2px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2px;
+  padding: 2px;
 }
 
 .gallery a {
-    display: block;
-    aspect-ratio: 3/2;
-    overflow: hidden;
-    content-visibility: auto;
-    contain-intrinsic-size: 400px 267px;
-    position: relative;
-    background: #2a2a2a;
+  display: block;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: 400px 267px;
+  position: relative;
+  background: #2a2a2a;
 }
 
 .gallery img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    cursor: pointer;
-    transition: transform 0.3s ease, opacity 0.3s ease;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 
 .gallery a:hover img {
-    transform: scale(1.05);
+  transform: scale(1.05);
 }
 
 .gallery a::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0);
-    transition: background 0.3s ease;
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.3s ease;
 }
 
 .gallery a:hover::after {
-    background: rgba(0, 0, 0, 0.1);
-}
-button.pswp__button--fullscreen {
-    color: #fff;
-}
-/* Кнопка HD */
-button.pswp__button--download-button,
-button.pswp__button--toggle-hd {
-    font-weight: bold;
-    font-size: 16px;
-    letter-spacing: 1px;
-//    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border-radius: 4px;
-    padding: 0 8px;
-    min-width: 40px;
-    transition: all 0.2s ease;
+  background: rgba(0, 0, 0, 0.1);
 }
 
-button.pswp__button--toggle-hd:hover {
-  //  background: rgba(255, 255, 255, 0.2);
-}
-
-button.pswp__button--toggle-hd.active {
-    color: #ffd700;
-  //  background: rgba(255, 215, 0, 0.2);
-}
-
-/* Footer */
+/* === Footer === */
 .footer {
-    text-align: center;
-    padding: 40px 20px;
-    color: #666;
-    font-size: 13px;
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 13px;
 }
 
 .footer a {
-    color: #b6b6b6;
-    text-decoration: none;
-    transition: color 0.2s ease;
+  color: #b6b6b6;
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .footer a:hover {
-    color: #fff;
+  color: #fff;
 }
 
-.header .archive-link {
-    margin-top: 10px;
-    font-size: 14px;
+/* === PhotoSwipe Overrides === */
+
+/* Top bar alignment */
+.pswp__top-bar {
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.header .archive-link a {
-    color: #fff;
-    text-decoration: none;
-/*     border: 1px solid #ffd700; */
-/*     padding: 6px 16px; */
-/*     border-radius: 20px; */
-    transition: all 0.2s;
+.pswp__top-bar .pswp__button,
+.pswp__top-bar .pswp__icn {
+  position: relative;
+  left: unset;
+  top: unset;
 }
 
-.header .archive-link a:hover {
-/*     background: #ffd700; */
-    color: #ffd700;
+/* Button base */
+.pswp__button {
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-/* Стили для кнопок поворота */
+.pswp__counter {
+  margin-top: unset;
+}
+
+/* Preloader */
+.pswp__preloader {
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Text buttons (HD, Download) */
+.pswp__button--toggle-hd,
+.pswp__button--download-button {
+  font-weight: bold;
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0 8px;
+  min-width: 40px;
+  transition: all 0.2s ease;
+}
+
+.pswp__button--toggle-hd {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.pswp__button--toggle-hd.active {
+  color: #ffd700;
+}
+
+/* Rotate buttons */
 .pswp__button--rotate-left,
 .pswp__button--rotate-right {
-    font-size: 22px;
-    font-weight: bold;
-/*     background: rgba(255, 255, 255, 0.1); */
-    color: white;
-    border-radius: 4px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #fff;
+  border-radius: 4px;
 }
 
 .pswp__button--rotate-left:hover,
 .pswp__button--rotate-right:hover {
-    background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
-@media (max-width: 768px) {
-    .pswp__button--rotate-right,
-    .pswp__button--zoom {
-        display: none !important;
-    }
+
+/* Fullscreen button */
+.pswp__button--fullscreen {
+  color: #fff;
 }
-.pswp__preloader,
-.pswp__top-bar,
-.pswp__button {
-    height: 50px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-.pswp__counter {
-    margin-top: unset;
-}
-.pswp__button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-.pswp__button,
-.pswp__icn {
-    position: relative;
-    left: unset;
-    top: unset;
-}
-.pswp__button--toggle-hd {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-}
+
+/* SVG icon shadows (visible on light backgrounds) */
 .pswp__button--fullscreen svg,
 .pswp__button--rotate-left svg,
 .pswp__button--rotate-right svg {
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+}
+
+/* === Mobile === */
+@media (max-width: 768px) {
+  .pswp__button--rotate-right,
+  .pswp__button--zoom {
+    display: none !important;
+  }
 }

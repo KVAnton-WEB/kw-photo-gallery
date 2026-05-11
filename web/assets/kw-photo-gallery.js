@@ -1,21 +1,38 @@
 import PhotoSwipeLightbox from "./photoswipe-lightbox.esm.min.js?v=1.0";
 
+/* ================================================================
+   Configuration
+   ================================================================ */
+
 const lightbox = new PhotoSwipeLightbox({
   gallery: "#gallery",
   children: "a",
   pswpModule: () => import("./photoswipe.esm.min.js?v=1.0"),
-  imageClickAction: "zoom", // Клик = зум
-  tapAction: "toggle-controls", // Двойной тап = контролы
+  imageClickAction: "zoom",
+  tapAction: "toggle-controls",
   bgOpacity: 0.95,
   padding: { top: 40, bottom: 40, left: 20, right: 20 },
-
-  // Настройки зума
   zoom: true,
   maxZoomLevel: 3,
-  wheelToZoom: true, // Зум колесиком
+  wheelToZoom: true,
 });
 
-// Функция переключения фулскрина
+/* ================================================================
+   Helpers
+   ================================================================ */
+
+const fullscreenIconEnter =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+
+const fullscreenIconExit =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>';
+
+const rotateLeftIcon =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.5 16A9 9 0 1 0 2 11"/></svg>';
+
+const rotateRightIcon =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.5 16A9 9 0 1 1 22 11"/></svg>';
+
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {});
@@ -24,14 +41,6 @@ function toggleFullscreen() {
   }
 }
 
-// Иконки для кнопки (меняются при входе/выходе)
-const fullscreenIconEnter =
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
-
-const fullscreenIconExit =
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>';
-
-// Функция поворота (общая для обеих кнопок)
 function rotateSlide(pswp, degrees) {
   const slide = pswp.currSlide;
   if (!slide) return;
@@ -40,36 +49,46 @@ function rotateSlide(pswp, degrees) {
   const newRotation = currentRotation + degrees;
   slide.data._rotation = newRotation;
 
-  console.log(slide.content);
   const img = slide.content.element;
-  console.log("img", img);
-  const container = slide.holderElement;
-
   if (img) {
     img.style.transform = `rotate(${newRotation}deg)`;
     img.style.transition = "transform 0.3s ease";
   }
 }
 
+function resetRotation(pswp) {
+  const slide = pswp.currSlide;
+  if (slide?.data) {
+    slide.data._rotation = 0;
+  }
+}
+
+function updateHDButton(el, slide) {
+  el.innerHTML = slide.data._isHD ? "WEB" : "HD";
+  el.style.fontWeight = slide.data._isHD ? "bold" : "normal";
+}
+
+/* ================================================================
+   UI Registration
+   ================================================================ */
+
 lightbox.on("uiRegister", function () {
-  // Кнопка фулскрина
+  // --- Fullscreen ---
   lightbox.pswp.ui.registerElement({
     name: "fullscreen",
     order: 3,
     isButton: true,
-    ariaLabel: "На весь экран",
-    title: "На весь экран",
+    ariaLabel: "Fullscreen",
+    title: "Toggle fullscreen",
     html: fullscreenIconEnter,
 
     onInit: (el, pswp) => {
-      // Обновлять иконку при входе/выходе из фулскрина
       document.addEventListener("fullscreenchange", () => {
         el.innerHTML = document.fullscreenElement
           ? fullscreenIconExit
           : fullscreenIconEnter;
       });
 
-      // Сбрасывать при закрытии галереи
       pswp.on("close", () => {
         if (document.fullscreenElement) {
           document.exitFullscreen();
@@ -77,54 +96,42 @@ lightbox.on("uiRegister", function () {
       });
     },
 
-    onClick: () => {
-      toggleFullscreen();
-    },
+    onClick: toggleFullscreen,
   });
-  // Кнопка поворота влево
+
+  // --- Rotate Left ---
   lightbox.pswp.ui.registerElement({
     name: "rotate-left",
     order: 12,
     isButton: true,
-    ariaLabel: "Повернуть влево",
-    title: "Повернуть влево",
-    html: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.5 16A9 9 0 1 0 2 11"/></svg>',
+    ariaLabel: "Rotate left",
+    title: "Rotate left",
+    html: rotateLeftIcon,
+
     onInit: (el, pswp) => {
-      // Сбрасываем поворот при смене слайда
-      pswp.on("change", () => {
-        const slide = pswp.currSlide;
-        if (slide?.data) {
-          slide.data._rotation = 0;
-        }
-      });
+      pswp.on("change", () => resetRotation(pswp));
     },
-    onClick: () => {
-      rotateSlide(lightbox.pswp, -90);
-    },
+
+    onClick: () => rotateSlide(lightbox.pswp, -90),
   });
 
-  // Кнопка поворота вправо
+  // --- Rotate Right ---
   lightbox.pswp.ui.registerElement({
     name: "rotate-right",
     order: 11,
     isButton: true,
-    ariaLabel: "Повернуть вправо",
-    title: "Повернуть вправо",
-    html: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.5 16A9 9 0 1 1 22 11"/></svg>',
+    ariaLabel: "Rotate right",
+    title: "Rotate right",
+    html: rotateRightIcon,
+
     onInit: (el, pswp) => {
-      // Сбрасываем поворот при смене слайда
-      pswp.on("change", () => {
-        const slide = pswp.currSlide;
-        if (slide?.data) {
-          slide.data._rotation = 0;
-        }
-      });
+      pswp.on("change", () => resetRotation(pswp));
     },
-    onClick: () => {
-      rotateSlide(lightbox.pswp, 90);
-    },
+
+    onClick: () => rotateSlide(lightbox.pswp, 90),
   });
-  // Кнопка скачивания RAW
+
+  // --- Download ---
   lightbox.pswp.ui.registerElement({
     name: "download-button",
     order: 8,
@@ -154,17 +161,16 @@ lightbox.on("uiRegister", function () {
     },
   });
 
-  // Кнопка переключения HD/WEB
+  // --- HD / WEB toggle ---
   lightbox.pswp.ui.registerElement({
     name: "toggle-hd",
     order: 7,
     isButton: true,
-    ariaLabel: "Переключить качество",
-    title: "Переключить качество в HD/WEB",
+    ariaLabel: "Toggle quality",
+    title: "Switch HD / WEB",
     html: "HD",
 
     onInit: (el, pswp) => {
-      // Сбрасываем кнопку при смене слайда
       pswp.on("change", () => {
         el.innerHTML = "HD";
         el.style.fontWeight = "normal";
@@ -176,22 +182,27 @@ lightbox.on("uiRegister", function () {
       const slide = pswp.currSlide;
       const element = slide.data.element;
       const rawUrl = element?.dataset?.raw;
-      const fullUrl = element?.href; // AVIF
+      const fullUrl = element?.href;
 
       if (!rawUrl || !fullUrl) return;
 
       const isHD = slide.data._isHD;
       const newSrc = isHD ? fullUrl : rawUrl;
 
-      // Показать индикатор загрузки
-      pswp.dispatch("loadingIndicatorDisplay", { isDisplayed: true });
+      // Показать встроенный прелоадер
+      const preloader = document.querySelector(
+        ".pswp__top-bar .pswp__preloader",
+      );
+      preloader?.classList.add("pswp__preloader--active");
 
-      // Предзагрузка изображения
+      const hidePreloader = () => {
+        preloader?.classList.remove("pswp__preloader--active");
+      };
+
       const img = new Image();
       img.onload = () => {
         const currentImg = slide.content.element;
         if (currentImg) {
-          // Плавная смена
           currentImg.style.transition = "opacity 0.3s ease";
           currentImg.style.opacity = "0";
 
@@ -201,25 +212,28 @@ lightbox.on("uiRegister", function () {
               currentImg.style.opacity = "1";
               slide.data._isHD = !isHD;
               slide.data.src = newSrc;
+              updateHDButton(el, slide);
 
-              // Обновить кнопку
-              el.innerHTML = slide.data._isHD ? "WEB" : "HD";
-              el.style.fontWeight = slide.data._isHD ? "bold" : "normal";
+              hidePreloader();
             };
           }, 300);
+        } else {
+          hidePreloader();
         }
-
-        pswp.dispatch("loadingIndicatorDisplay", { isDisplayed: false });
       };
 
       img.onerror = () => {
         console.error("Failed to load HD image");
-        pswp.dispatch("loadingIndicatorDisplay", { isDisplayed: false });
+        hidePreloader();
       };
 
       img.src = newSrc;
     },
   });
 });
+
+/* ================================================================
+   Init
+   ================================================================ */
 
 lightbox.init();
