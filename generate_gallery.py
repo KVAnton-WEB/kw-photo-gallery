@@ -1,61 +1,53 @@
 #!/usr/bin/env python3
 """
-Генератор фотогалереи — только Python, без HTML/CSS/JS строк
+Генератор фотогалереи — с красивым прогресс-баром
 """
 import subprocess
 import argparse
 from pathlib import Path
-from PIL import Image, ImageOps, ExifTags
-from concurrent.futures import ThreadPoolExecutor
+from PIL import Image, ImageOps
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import shutil
+import sys
+import threading
+import zipfile
 
 SUPPORTED_TYPES = {'.jpg', '.jpeg', '.png'}
 DEFAULT_MAX_SIZE = 2560
 DEFAULT_THUMB_SIZE = 600
 DEFAULT_QUALITY = 65
 
-# === HTML шаблоны ===
+def minify_assets(assets_dir: Path):
+    """Минифицировать JS и CSS если есть terser/cssnano"""
+    js_file = assets_dir / 'kw-photo-gallery.js'
+    css_file = assets_dir / 'style.css'
 
-HTML_TEMPLATE = '''<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AntonKw Photo Gallery</title>
-  <link rel="stylesheet" href="assets/photoswipe.css?v=1.0">
-  <link rel="stylesheet" href="assets/style.css?v=1.0">
-</head>
-<body>
-  <div class="header">
-    <h1>📸 AntonKw Photo Gallery</h1>
-    <p>{count} photos • Click for full view • HD button for original quality</p>
-  </div>
+    # Проверяем terser
+    if shutil.which('npx'):
+        try:
+            # Минификация JS
+            subprocess.run([
+                'npx', 'terser',
+                str(js_file),
+                '-o', str(assets_dir / 'kw-photo-gallery.min.js'),
+                '-c', '-m'
+            ], check=True, capture_output=True)
+            print(f"✅ JS minified: kw-photo-gallery.min.js")
+        except:
+            pass
 
-  <div class="gallery" id="gallery">
-{images}
-  </div>
+# Блокировка для синхронизации вывода
+print_lock = threading.Lock()
 
-  <div class="footer">
-    <p>© {year} • <a href="https://t.me/AntonKw" target="_blank">@AntonKw</a></p>
-  </div>
+TEMPLATES_DIR = Path(__file__).parent / 'tpl'
 
-  <script type="module" src="assets/kw-photo-gallery.js?v=1.0"></script>
-</body>
-</html>'''
-
-IMAGE_TEMPLATE = '''    <a href="{avif}"
-       data-pswp-width="{width}"
-       data-pswp-height="{height}"
-       data-raw="{raw}"
-       data-download="{filename}.jpg">
-      <img src="{thumb}"
-           alt="{alt}"
-           loading="lazy"
-           width="600" height="400">
-    </a>
-'''
-
+def load_template(name: str) -> str:
+    """Загрузить шаблон из файла"""
+    path = TEMPLATES_DIR / name
+    if not path.exists():
+        raise FileNotFoundError(f"Template not found: {path}")
+    return path.read_text(encoding='utf-8')
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Генератор статической фотогалереи')
@@ -71,9 +63,16 @@ def parse_args():
                         help=f'Качество AVIF (по умолчанию: {DEFAULT_QUALITY})')
     parser.add_argument('--workers', type=int, default=4,
                         help='Параллельных обработчиков (по умолчанию: 4)')
+    parser.add_argument('--no-zip', action='store_true',
+                    help='Не создавать ZIP архив')
     parser.add_argument('--no-gpu', action='store_true', help='Отключить GPU')
     parser.add_argument('--force', action='store_true', help='Пересоздать все файлы')
     parser.add_argument('--dry-run', action='store_true', help='Только показать план')
+    parser.add_argument('--author-name', type=str, default=None, help='Имя владельца галереи')
+    parser.add_argument('--author-link', type=str, default=None, help='Контакты ссылка')
+    parser.add_argument('--author-title', type=str, default=None, help='Контакты заголовок ссылки')
+
+
     return parser.parse_args()
 
 
@@ -91,6 +90,40 @@ def check_tools():
         except:
             pass
     return tools
+
+def create_raw_archive(raw_dir: Path, output_path: Path, prefix, force: bool = False) -> Path | None:
+    """
+    Создать ZIP-архив из всех raw-файлов.
+    Возвращает путь к архиву или None.
+    """
+    archive_path = output_path / f'{prefix}_PhotoGallery_raw.zip'
+
+    if archive_path.exists() and not force:
+        print(f"📦 Archive already exists: {archive_path}")
+        return archive_path
+
+    raw_files = sorted([
+        f for f in raw_dir.iterdir()
+        if f.is_file() and f.suffix.lower() in SUPPORTED_TYPES
+    ])
+
+    if not raw_files:
+        print("⚠️  No raw files for archive")
+        return None
+
+    print(f"📦 Creating archive with {len(raw_files)} files...")
+
+    with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for i, file_path in enumerate(raw_files, 1):
+            zf.write(file_path, file_path.name)
+            # Прогресс каждые 50 файлов
+            if i % 50 == 0 or i == len(raw_files):
+                print(f"  Added {i}/{len(raw_files)}: {file_path.name}")
+
+    size_mb = archive_path.stat().st_size / 1024 / 1024
+    print(f"📦 Archive created: {archive_path} ({size_mb:.1f} MB)")
+
+    return archive_path
 
 
 def find_images(raw_dir: Path) -> list[Path]:
@@ -117,63 +150,79 @@ def calculate_size(w: int, h: int, max_size: int) -> tuple[int, int]:
 
 
 def make_thumbnail(img_path: Path, output_path: Path, img: Image.Image,
-                   tools: dict, thumb_size: int):
-    if tools['vips']:
-        cmd = ['vips', 'thumbnail', str(img_path),
-               str(output_path) + '[Q=75]', f'{thumb_size}x{thumb_size}']
-        subprocess.run(cmd, check=True, capture_output=True)
-    else:
-        thumb = img.copy()
-        thumb.thumbnail((thumb_size, thumb_size), Image.Resampling.LANCZOS)
-        thumb.save(output_path, 'WEBP', quality=75)
+                   tools: dict, thumb_size: int) -> str:
+    """Возвращает статус: 'vips', 'pil', 'skip', 'err'"""
+    if output_path.exists():
+        return 'skip'
+
+    try:
+        if tools['vips']:
+            cmd = ['vips', 'thumbnail', str(img_path),
+                   str(output_path) + '[Q=75]', f'{thumb_size}x{thumb_size}']
+            subprocess.run(cmd, check=True, capture_output=True)
+            return 'vips'
+        else:
+            thumb = img.copy()
+            thumb.thumbnail((thumb_size, thumb_size), Image.Resampling.LANCZOS)
+            thumb.save(output_path, 'WEBP', quality=75)
+            return 'pil'
+    except Exception:
+        return 'err'
 
 
 def make_avif(img_path: Path, output_path: Path, w: int, h: int,
-              tools: dict, quality: int):
-    if tools['ffmpeg']:
-        scale = f'scale={w}:{h}:flags=lanczos'
-        cmd = [
-            'ffmpeg', '-y', '-loglevel', 'error',
-            '-i', str(img_path), '-vf', scale,
-            '-c:v', 'libaom-av1',
-            '-crf', str(max(10, int((100 - quality) / 2))),
-            '-cpu-used', '5', '-frames:v', '1',
-            '-pix_fmt', 'yuv420p', str(output_path)
-        ]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
-    else:
-        img = Image.open(img_path)
-        img = ImageOps.exif_transpose(img)
-        if (w, h) != (img.width, img.height):
-            img = img.resize((w, h), Image.Resampling.LANCZOS)
-        img.save(output_path, 'AVIF', quality=quality)
+              tools: dict, quality: int) -> str:
+    """Возвращает статус: 'ffmpeg', 'pil', 'skip', 'err'"""
+    if output_path.exists():
+        return 'skip'
+
+    try:
+        if tools['ffmpeg']:
+            scale = f'scale={w}:{h}:flags=lanczos'
+            cmd = [
+                'ffmpeg', '-y', '-loglevel', 'error',
+                '-i', str(img_path), '-vf', scale,
+                '-c:v', 'libaom-av1',
+                '-crf', str(max(10, int((100 - quality) / 2))),
+                '-cpu-used', '5', '-frames:v', '1',
+                '-pix_fmt', 'yuv420p', str(output_path)
+            ]
+            subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+            return 'ffmpeg'
+        else:
+            img = Image.open(img_path)
+            img = ImageOps.exif_transpose(img)
+            if (w, h) != (img.width, img.height):
+                img = img.resize((w, h), Image.Resampling.LANCZOS)
+            img.save(output_path, 'AVIF', quality=quality)
+            return 'pil'
+    except Exception:
+        return 'err'
 
 
 def process_image(img_path: Path, full_dir: Path, thumb_dir: Path,
                   tools: dict, args, root: Path) -> dict | None:
+    """Обработка одного изображения. Тихо, без вывода."""
     try:
         stem = img_path.stem
-        print(f"  {img_path.name}...", end=" ", flush=True)
-
         width, height, img = get_image_info(img_path)
 
         # Превью
         thumb_path = thumb_dir / f"{stem}_thumb.webp"
+        thumb_status = 'skip'
         if args.force or not thumb_path.exists():
-            make_thumbnail(img_path, thumb_path, img, tools, args.thumb_size)
-            print("thumb✓", end=" ", flush=True)
+            thumb_status = make_thumbnail(img_path, thumb_path, img, tools, args.thumb_size)
 
         # AVIF
         avif_path = full_dir / f"{stem}.avif"
         new_w, new_h = calculate_size(width, height, args.max_size)
+        avif_status = 'skip'
         if args.force or not avif_path.exists():
-            make_avif(img_path, avif_path, new_w, new_h, tools, args.quality)
-            print("avif✓", end=" ", flush=True)
+            avif_status = make_avif(img_path, avif_path, new_w, new_h, tools, args.quality)
 
         img.close()
 
-        size_info = f"{new_w}x{new_h}" if (new_w, new_h) != (width, height) else "orig"
-        print(f"({size_info})")
+        size_info = f"{new_w}×{new_h}" if (new_w, new_h) != (width, height) else "orig"
 
         return {
             'thumb': str(thumb_path.resolve().relative_to(root.resolve())),
@@ -183,23 +232,45 @@ def process_image(img_path: Path, full_dir: Path, thumb_dir: Path,
             'height': new_h,
             'alt': stem,
             'filename': stem,
+            # Для лога
+            'name': img_path.name,
+            'size_info': size_info,
+            'thumb_status': thumb_status,
+            'avif_status': avif_status,
         }
     except Exception as e:
-        print(f"✗ {e}")
-        return None
+        return {
+            'error': str(e),
+            'name': img_path.name,
+        }
 
 
-def generate_html(images_data: list[dict], output_path: Path):
-    images_html = '\n'.join(IMAGE_TEMPLATE.format(**img) for img in images_data)
+def format_progress(current: int, total: int, elapsed: float,
+                    current_file: str = '', status: str = '') -> str:
+    """Форматирует строку прогресса"""
+    pct = current / total * 100
+    bar_width = 30
+    filled = int(bar_width * current / total)
+    bar = '█' * filled + '░' * (bar_width - filled)
 
-    html = HTML_TEMPLATE.format(
-        count=len(images_data),
-        year=time.strftime('%Y'),
-        images=images_html,
-    )
+    eta = ''
+    if current > 0:
+        eta_sec = elapsed / current * (total - current)
+        if eta_sec > 60:
+            eta = f'ETA: {eta_sec/60:.0f}m'
+        else:
+            eta = f'ETA: {eta_sec:.0f}s'
 
-    output_path.write_text(html, encoding='utf-8')
-    print(f"✅ HTML: {output_path}")
+    elapsed_str = f'{elapsed:.0f}s' if elapsed < 60 else f'{elapsed/60:.1f}m'
+
+    line = f'\r  [{bar}] {pct:5.1f}% ({current}/{total}) | {elapsed_str} | {eta}'
+
+    if current_file:
+        line += f' | {current_file}'
+    if status:
+        line += f' | {status}'
+
+    return line
 
 
 def main():
@@ -213,6 +284,7 @@ def main():
     output_path = Path(args.output).resolve() if args.output else root / 'index.html'
 
     # Вывод конфигурации
+    print()
     print(f"📁 Root:   {root}")
     print(f"📁 Output: {output_path}")
     print(f"⚙️  Max: {args.max_size}px | Thumb: {args.thumb_size}px | Q: {args.quality} | Workers: {args.workers}")
@@ -233,25 +305,100 @@ def main():
         print("❌ No images found!")
         return
 
-    print(f"📸 Processing {len(images)} images...\n")
+    total = len(images)
+    print(f"📸 Processing {total} images...\n")
     start = time.time()
 
     images_data = []
+    errors = []
+
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         futures = {
             executor.submit(process_image, p, full_dir, thumb_dir, tools, args, root): p
             for p in images
         }
-        for future in futures:
+
+        completed = 0
+        for future in as_completed(futures):
             result = future.result()
+            completed += 1
+            elapsed = time.time() - start
+
             if result:
-                images_data.append(result)
+                if 'error' in result:
+                    errors.append(result)
+                    status = f'❌ {result["error"][:40]}'
+                else:
+                    images_data.append(result)
+                    # Формируем статус
+                    parts = []
+                    if result['thumb_status'] not in ('skip',):
+                        parts.append(f"thumb:{result['thumb_status']}")
+                    if result['avif_status'] not in ('skip',):
+                        parts.append(f"avif:{result['avif_status']}")
+                    status = ' | '.join(parts) if parts else '⏭️ cached'
+                    status += f' [{result["size_info"]}]'
 
+                # Выводим прогресс
+                line = format_progress(completed, total, elapsed, result['name'], status)
+                sys.stdout.write(line + '\033[K')  # \033[K очищает до конца строки
+                sys.stdout.flush()
+
+    # Финальный перевод строки
+    print()
+
+    elapsed = time.time() - start
+
+    # Статистика
+    print(f"\n{'='*60}")
+    print(f"⏱️  Total time: {elapsed:.1f}s ({elapsed/total:.1f}s per image)")
+    print(f"✅ Success: {len(images_data)}")
+    if errors:
+        print(f"❌ Errors:  {len(errors)}")
+        for e in errors:
+            print(f"   - {e['name']}: {e['error']}")
+    print()
+
+    # Создание ZIP архива
+    archive_path = None
+    if not args.no_zip:
+        archive_path = create_raw_archive(raw_dir, root, args.author_name, args.force)
+
+    # Сортируем и генерируем HTML
     images_data.sort(key=lambda x: x['alt'])
-
-    print(f"\n⏱️  Time: {time.time() - start:.1f}s")
-    generate_html(images_data, output_path)
+    generate_html(images_data, output_path, archive_path, args)
+    minify_assets(root / 'assets')
     print(f"✅ Done! {len(images_data)} photos → {output_path}")
+
+
+def generate_html(images_data: list[dict], output_path: Path, archive_path, args):
+    image_template = load_template('img.html')
+    index_template = load_template('main.html')
+    footer_template = load_template('footer.html')
+
+    images_html = '\n'.join(image_template.format(**img) for img in images_data)
+
+    # Архивная ссылка
+    if archive_path:
+        archive_size = archive_path.stat().st_size / 1024 / 1024
+        archive_link = f'<p class="archive-link">📦 <a href="{args.author_name}_PhotoGallery_raw.zip" download>Скачать весь архив в исходном качестве</a> ({archive_size:.0f} MB)</p>'
+    else:
+        archive_link = ''
+
+    html = index_template.format(
+        count=len(images_data),
+        year=time.strftime('%Y'),
+        images=images_html,
+        archive=archive_link,
+        footer=footer_template.format(
+            link=args.author_link,
+            title=args.author_title
+        ),
+        author_name=args.author_name
+    )
+
+    output_path.write_text(html, encoding='utf-8')
+    print(f"📄 HTML: {output_path}")
 
 
 if __name__ == '__main__':

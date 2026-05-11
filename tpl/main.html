@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{author_name} Photo Gallery</title>
+  <link rel="stylesheet" href="assets/photoswipe.css?v=1.0">
+  <link rel="stylesheet" href="assets/style.css?v=2.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📸</text></svg>">
+</head>
+<body>
+  <header class="header">
+    <h1>📸 {author_name} Photo Gallery</h1>
+    <p>{count} photos • Click for full view • HD button for original quality</p>
+    {archive}
+  </header>
+
+  <section class="gallery" id="gallery">
+{images}
+  </section>
+
+  <footer class="footer">
+    <p>{footer}</p>
+    <p>© {year} • Powered by <a href="https://github.com/KVAnton-WEB/kw-photo-gallery/" target="_blank">kw-photo-gallery</a></p>
+  </footer>
+
+  <script type="module" src="assets/kw-photo-gallery.min.js?v=2.2"></script>
+</body>
+</html>

@@ -100,3 +100,52 @@ button.pswp__button--toggle-hd.active {
     color: #666;
     font-size: 13px;
 }
+
+.footer a {
+    color: #b6b6b6;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer a:hover {
+    color: #fff;
+}
+
+.header .archive-link {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.header .archive-link a {
+    color: #fff;
+    text-decoration: none;
+/*     border: 1px solid #ffd700; */
+/*     padding: 6px 16px; */
+/*     border-radius: 20px; */
+    transition: all 0.2s;
+}
+
+.header .archive-link a:hover {
+/*     background: #ffd700; */
+    color: #ffd700;
+}
+
+/* Стили для кнопок поворота */
+.pswp__button--rotate-left,
+.pswp__button--rotate-right {
+    font-size: 22px;
+    font-weight: bold;
+/*     background: rgba(255, 255, 255, 0.1); */
+    color: white;
+    border-radius: 4px;
+}
+
+.pswp__button--rotate-left:hover,
+.pswp__button--rotate-right:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+@media (max-width: 768px) {
+    .pswp__button--zoom {
+        display: none !important;
+    }
+}
