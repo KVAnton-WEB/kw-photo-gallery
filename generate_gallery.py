@@ -454,7 +454,7 @@ def generate_gallery():
         });
 
       // Кнопка просмотра RAW (HD)
-      lightbox.pswp.ui.registerElement({
+   lightbox.pswp.ui.registerElement({
         name: 'toggle-hd',
         order: 7,
         isButton: true,
@@ -462,24 +462,32 @@ def generate_gallery():
         title: 'Переключить качество в HD/WEB',
         html: 'HD',
 
-        onClick: () => {
-          const slide = lightbox.pswp.currSlide;
+        onInit: (el, pswp) => {
+          // Сбрасываем кнопку при смене слайда
+          pswp.on('change', () => {
+            el.innerHTML = 'HD';
+            el.style.fontWeight = 'normal';
+          });
+        },
+
+        onClick: (event, el) => {
+          const pswp = lightbox.pswp;
+          const slide = pswp.currSlide;
           const element = slide.data.element;
           const rawUrl = element?.dataset?.raw;
-          const fullUrl = element?.href; // AVIF/WebP
+          const fullUrl = element?.href; // AVIF
+
           if (!rawUrl || !fullUrl) return;
 
           const isHD = slide.data._isHD;
           const newSrc = isHD ? fullUrl : rawUrl;
 
           // Показать индикатор загрузки
-          const pswp = lightbox.pswp;
           pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: true });
 
           // Предзагрузка изображения
           const img = new Image();
           img.onload = () => {
-            // Найти текущее изображение
             const currentImg = slide.content.element;
             if (currentImg) {
               // Плавная смена
@@ -494,11 +502,8 @@ def generate_gallery():
                   slide.data.src = newSrc;
 
                   // Обновить кнопку
-                  const btn = document.querySelector('.pswp__button--toggle-hd');
-                  if (btn) {
-                    btn.innerHTML = isHD ? 'HD' : 'WEB';
-                    btn.style.fontWeight = isHD ? 'normal' : 'bold';
-                  }
+                  el.innerHTML = slide.data._isHD ? 'WEB' : 'HD';
+                  el.style.fontWeight = slide.data._isHD ? 'bold' : 'normal';
                 };
               }, 300);
             }
@@ -511,7 +516,7 @@ def generate_gallery():
             pswp.dispatch('loadingIndicatorDisplay', { isDisplayed: false });
           };
 
-          img.src =  isHD ? newSrc : `/${newSrc}`;
+          img.src = newSrc;
         }
       });
     });
