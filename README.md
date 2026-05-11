@@ -1,4 +1,4 @@
-# 📸 KW Photo Gallery ⚡🎈☂️
+# 📸 KW Photo Gallery ⚡🎈🪶🚲🍃
 
 **Static photo gallery generator for photographers.**
 Build once, host anywhere — even on a router.
@@ -38,13 +38,15 @@ With lazy-loaded thumbnails, you want them to appear **instantly** as the user s
 
 ## How It Works
 
-raw/             full/           thumbs/
-├── photo1.jpg → ├── photo1.avif ├── photo1_thumb.webp
-├── photo2.JPG → ├── photo2.avif ├── photo2_thumb.webp
-└── ... └── ... └── ...
-↘
-index.html
-(static, ready to serve)
+```
+raw/                    full/                  thumbs/
+├── photo1.jpg    →     ├── photo1.avif        ├── photo1_thumb.webp
+├── photo2.JPG    →     ├── photo2.avif        ├── photo2_thumb.webp
+└── ...                 └── ...                └── ...
+                                        ↘
+                                    index.html
+                                    (static, ready to serve)
+```
 
 1. Drop your photos into `web/raw/`
 2. Run the generator
@@ -191,7 +193,7 @@ All modern browsers (Chrome, Firefox, Safari, Edge — 2020+).
 ## Libraries
 
 - [PhotoSwipe 5](https://photoswipe.com/) — image viewer (MIT)
-- [Pillow](https://python-pillow.org/) — image processing (PIL)
+- [Pillow](https://python-pillow.github.io/) — image processing (PIL)
 - [libvips](https://www.libvips.org/) — fast image processing (optional, LGPL)
 - [ffmpeg](https://ffmpeg.org/) — AVIF encoding (optional, GPL)
 
